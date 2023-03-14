@@ -1,28 +1,3 @@
-
-## Create DB instance ##
-resource "google_sql_database_instance" "main" {
-  name             = "${var.name}-db"
-  database_version = "POSTGRES_14"
-  region           = "us-central1"
-  depends_on       = [google_service_networking_connection.private_vpc_connection]
-  deletion_protection = false
-  settings {
-    tier = "db-g1-small"
-    ip_configuration {
-      ipv4_enabled    = false
-      private_network = module.vpc.network_id
-    }
-  }
-}
-
-
-## Create DB ##
-resource "google_sql_database" "lp-db" {
-  name      = var.name
-  instance  = google_sql_database_instance.main.name
-  charset   = "utf8"
-}
-
 ## Generate PGDB PW ##
 resource "random_password" "db" {
   length    = 36
@@ -32,10 +7,35 @@ resource "random_password" "db" {
 }
 
 
-## Create DB User ##
-resource "google_sql_user" "this" {
-  name     = "lpuser"
-  instance = google_sql_database_instance.main.name
-  password = random_password.db.result
-}
+module "pg_db" {
+  source  = "GoogleCloudPlatform/sql-db/google//modules/postgresql"
+  version = "8.0.0"
+  name = var.name
+  region = var.regionid
+  zone = var.zoneid
+  project_id = var.projectid
+  database_version = "POSTGRES_14"
+  
+  tier = "db-g1-small"
+  availability_type = "REGIONAL"
+  
+  user_name = "lpuser"
+  user_password = random_password.db.result
+  
+  db_charset   = "UTF8"
+  db_collation = "en_US.UTF8"
 
+  db_name = var.name
+  deletion_protection = false
+  ip_configuration = {
+    ipv4_enabled    = false
+    private_network = module.vpc.network_id
+    require_ssl = false
+    authorized_networks = [
+  {
+    "name": "sample-gcp-health-checkers-range",
+    "value": "130.211.0.0/28"
+  }
+]
+  }
+}

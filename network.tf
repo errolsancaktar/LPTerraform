@@ -47,7 +47,7 @@ module "lb-http" {
   project = var.projectid
   name    = "${var.name}-lb"
 
-  managed_ssl_certificate_domains = ["YOUR_DOMAIN.COM"]
+  #managed_ssl_certificate_domains = ["YOUR_DOMAIN.COM"]
   ssl = false
   https_redirect                  = false
 
@@ -77,6 +77,19 @@ module "lb-http" {
       security_policy        = null
     }
   }
+}
+
+module "cloud-nat" {
+  source     = "terraform-google-modules/cloud-router/google"
+  version    = "~> 1.2"
+  region     = var.regionid
+  project = var.projectid
+  name       = "lpnat"
+  network    = module.vpc.network_name
+#  subnetwork = module.vpc.subnets["${var.regionid}/lp-pvt"].name
+  nats = [{
+    name = "my-nat-gateway"
+  }]
 }
 
 ## VPC Connector for CR ##

@@ -8,7 +8,7 @@ output "db_pass" {
 }
 
 output "db_ip" {
-  value = google_sql_database_instance.main.private_ip_address
+  value = module.pg_db.private_ip_address
 }
 
 output "cloud_run_instance_url" {

@@ -17,10 +17,22 @@ provider "google-beta" {
   region  = var.regionid
 }
 
-resource "google_project_service" "compute_api" {
-  disable_on_destroy = false
-  project            = "lptest-380322"
-  service            = "compute.googleapis.com"
+## Project Factory to build out the project and apis ##
+module "project-services" {
+  source  = "terraform-google-modules/project-factory/google//modules/project_services"
+  version = "~> 14.2"
+
+  project_id                  = var.projectid
+  disable_services_on_destroy = false
+  activate_apis = [
+    "compute.googleapis.com",
+    "vpcaccess.googleapis.com",
+    "run.googleapis.com",
+    "deploymentmanager.googleapis.com",
+    "servicenetworking.googleapis.com",
+    "sqladmin.googleapis.com"
+
+  ]
 }
 
 
@@ -39,7 +51,7 @@ resource "google_cloud_run_service" "lp" {
         }
         env {
           name  = "DATABASE"
-          value = "postgresql://lpuser:${random_password.db.result}@${google_sql_database_instance.main.private_ip_address}:5432/${var.name}"
+          value = "postgresql://lpuser:${random_password.db.result}@${module.pg_db.private_ip_address}:5432/${var.name}"
         }
         env {
           name = "SCHEDULE"
@@ -60,7 +72,6 @@ resource "google_cloud_run_service" "lp" {
       annotations = {
         "autoscaling.knative.dev/maxScale" = "2"
         "run.googleapis.com/vpc-access-connector" = google_vpc_access_connector.lp-connector.name  ## VPC Connector ##
-        "run.googleapis.com/vpc-access-egress" = "all-traffic"
       }
     }
   }

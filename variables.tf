@@ -19,5 +19,5 @@ variable "zoneid" {
 
 variable "name" {
   type    = string
-  default = "remmina"
+  default = "pdb"
 }
