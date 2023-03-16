@@ -1,7 +1,12 @@
 variable "projectid" {
+  type    = string
+  default = "tform-380802"
+}
+
+variable "orgid" {
   type        = string
-  default     = "lptest-380322"
-  description = "GCP Project ID"
+  default     = "69436983730"
+  description = "Org ID"
 }
 
 variable "regionid" {

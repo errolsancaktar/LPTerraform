@@ -2,9 +2,9 @@
 ## Build out the basics ##
 module "vpc" {
   source  = "terraform-google-modules/network/google"
-  version = "~> 5.0"
+  version = "6.0.1"
 
-  project_id   = var.projectid
+  project_id   = module.project-services.project_id
   network_name = "lp"
   routing_mode = "GLOBAL"
 
@@ -25,8 +25,13 @@ module "vpc" {
       description           = "Private VPC"
     }
   ]
+  depends_on = [time_sleep.wait_60_seconds]
 }
 
+resource "time_sleep" "wait_60_seconds" {
+  depends_on      = [module.project-services.project_id]
+  create_duration = "60s"
+}
 
 ## Create NEG for LB ##
 resource "google_compute_region_network_endpoint_group" "lp_neg" {
@@ -42,17 +47,21 @@ resource "google_compute_region_network_endpoint_group" "lp_neg" {
 ## Implement LB ##
 module "lb-http" {
   source  = "GoogleCloudPlatform/lb-http/google//modules/serverless_negs"
-  version = "~> 4.5"
+  version = ">=5.0"
 
   project = var.projectid
   name    = "${var.name}-lb"
 
   #managed_ssl_certificate_domains = ["YOUR_DOMAIN.COM"]
-  ssl = false
-  https_redirect                  = false
+  ssl            = false
+  https_redirect = false
 
   backends = {
     default = {
+      protocol                = "HTTP"
+      port_name               = "http"
+      compression_mode        = null
+      custom_response_headers = null
       groups = [
         {
           group = google_compute_region_network_endpoint_group.lp_neg.id
@@ -80,13 +89,13 @@ module "lb-http" {
 }
 
 module "cloud-nat" {
-  source     = "terraform-google-modules/cloud-router/google"
-  version    = "~> 1.2"
-  region     = var.regionid
+  source  = "terraform-google-modules/cloud-router/google"
+  version = "~> 1.2"
+  region  = var.regionid
   project = var.projectid
-  name       = "lpnat"
-  network    = module.vpc.network_name
-#  subnetwork = module.vpc.subnets["${var.regionid}/lp-pvt"].name
+  name    = "lpnat"
+  network = module.vpc.network_name
+  #  subnetwork = module.vpc.subnets["${var.regionid}/lp-pvt"].name
   nats = [{
     name = "my-nat-gateway"
   }]
@@ -95,9 +104,9 @@ module "cloud-nat" {
 ## VPC Connector for CR ##
 resource "google_vpc_access_connector" "lp-connector" {
   provider = google-beta
-  name = "run-vpc"
-   subnet {
-    name = module.vpc.subnets["${var.regionid}/lp-pvt"].name
+  name     = "run-vpc"
+  subnet {
+    name       = module.vpc.subnets["${var.regionid}/lp-pvt"].name
     project_id = var.projectid
   }
   machine_type = "e2-micro"
@@ -111,10 +120,10 @@ resource "google_vpc_access_connector" "lp-connector" {
 
 ## IP Block For peering ##
 resource "google_compute_global_address" "private_ip_block" {
-  name         = "private-ip-block"
-  purpose      = "VPC_PEERING"
-  address_type = "INTERNAL"
-  ip_version   = "IPV4"
+  name          = "private-ip-block"
+  purpose       = "VPC_PEERING"
+  address_type  = "INTERNAL"
+  ip_version    = "IPV4"
   prefix_length = 20
   network       = module.vpc.network_id
 }
