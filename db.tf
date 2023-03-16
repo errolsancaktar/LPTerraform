@@ -40,4 +40,5 @@ module "pg_db" {
       }
     ]
   }
+  depends_on = [google_service_networking_connection.private_vpc_connection]
 }
